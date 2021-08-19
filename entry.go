@@ -51,6 +51,9 @@ func Diff(repo, ref1, ref2, dir string) ([]Entry, error) {
 		Hash:  *rev2,
 		Force: true,
 	})
+	if err != nil {
+		return nil, err
+	}
 	entriesAfterFI, err := wt.Filesystem.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -82,6 +85,9 @@ func Diff(repo, ref1, ref2, dir string) ([]Entry, error) {
 			Hash:  *rev1,
 			Force: true,
 		})
+		if err != nil {
+			return nil, err
+		}
 		entriesBeforeFI, err := wt.Filesystem.ReadDir(dir)
 		if err != nil {
 			return nil, err

@@ -1,43 +1,53 @@
-{{- if .NotesByType.note -}}
-NOTES:
-{{range .NotesByType.note -}}
-* {{ template "note" .}}
+Changes since {{ .PreviousVersion }}
+
+---
+
+{{ if .NotesByType.warning }}
+## :warning: Breaking Changes
+{{range .NotesByType.warning -}}
+- {{ template "note" . }}
+{{ end -}}
+{{ end -}}
+
+{{ if .NotesByType.feature -}}
+## :sparkles: New Features
+{{range .NotesByType.feature -}}
+- {{ template "note" . }}
 {{ end -}}
 {{- end -}}
 
-{{- if .NotesByType.deprecation -}}
-DEPRECATIONS:
-{{range .NotesByType.deprecation -}}
-* {{ template "note" .}}
-{{ end -}}
-{{- end -}}
-
-{{- if index .NotesByType "breaking-change" -}}
-BREAKING CHANGES:
-{{range index .NotesByType "breaking-change" -}}
-* {{ template "note" .}}
-{{ end -}}
-{{- end -}}
-
-{{- $features := combineTypes .NotesByType.feature (index .NotesByType "new-resource" ) (index .NotesByType "new-datasource") (index .NotesByType "new-data-source") -}}
-{{- if $features }}
-FEATURES:
-{{range $features | sort -}}
-* {{ template "note" . }}
-{{ end -}}
-{{- end -}}
-
-{{- $improvements := combineTypes .NotesByType.improvement .NotesByType.enhancement -}}
-{{- if $improvements }}
-IMPROVEMENTS:
-{{range $improvements | sort -}}
-* {{ template "note" . }}
-{{ end -}}
-{{- end -}}
-
-{{- if .NotesByType.bug }}
-BUG FIXES:
+{{ if .NotesByType.bug -}}
+## :bug: Bug Fixes
 {{range .NotesByType.bug -}}
-* {{ template "note" . }}
+- {{ template "note" . }}
 {{ end -}}
 {{- end -}}
+
+{{ if .NotesByType.other -}}
+## :seedling: Others
+{{range .NotesByType.other -}}
+- {{ template "note" . }}
+{{ end -}}
+{{- end -}}
+
+{{ if .NotesByType.documentation -}}
+## :book: Documentation
+{{range .NotesByType.documentation -}}
+- {{ template "note" . }}
+{{ end -}}
+{{- end -}}
+
+{{ if .NotesByType.testing -}}
+## :green_heart: Testing
+{{range .NotesByType.testing -}}
+- {{ template "note" . }}
+{{ end -}}
+{{- end -}}
+
+{{ if .NotesByType.unknown -}}
+## :question: Sort these by hand
+{{range .NotesByType.unknown -}}
+- {{ template "note" . }}
+{{ end -}}
+{{- end }}
+_Thanks to all our contributors!_ 😊

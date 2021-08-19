@@ -2,95 +2,105 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/google/go-github/github"
-	"github.com/hashicorp/go-changelog"
 	"golang.org/x/oauth2"
+
+	"github.com/hashicorp/go-changelog"
 )
 
 func main() {
 	ctx := context.Background()
-	if len(os.Args) < 2 {
-		log.Fatalf("Usage: changelog-pr-body-check PR#\n")
-	}
-	pr := os.Args[1]
-	prNo, err := strconv.Atoi(pr)
-	if err != nil {
-		log.Fatalf("Error parsing PR %q as a number: %s", pr, err)
-	}
 
-	owner := os.Getenv("GITHUB_OWNER")
-	repo := os.Getenv("GITHUB_REPO")
-	token := os.Getenv("GITHUB_TOKEN")
+	var outputPath string
+	var pullRequestNumber int
+	flag.StringVar(&outputPath, "output-path", "", "if not empty, directory to which extracted notes file should be written")
+	flag.IntVar(&pullRequestNumber, "pull-request", 0, "number of pull request to be read")
+	flag.Parse()
 
-	if owner == "" {
-		log.Fatalf("GITHUB_OWNER not set")
-	}
-	if repo == "" {
-		log.Fatalf("GITHUB_REPO not set")
-	}
-	if token == "" {
-		log.Fatalf("GITHUB_TOKEN not set")
+	if pullRequestNumber == 0 {
+		_, _ = fmt.Fprintln(os.Stderr, "Must specify pull request number.")
+		_, _ = fmt.Fprintln(os.Stderr, "")
+		flag.Usage()
+		os.Exit(1)
 	}
 
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	tc := oauth2.NewClient(ctx, ts)
+	repository := os.Getenv("GITHUB_REPOSITORY")
+	if repository == "" {
+		log.Fatalf("GITHUB_REPOSITORY not set")
+	}
+	repositorySplit := strings.Split(repository, "/")
+	if len(repositorySplit) != 2 || repositorySplit[0] == "" || repositorySplit[1] == "" {
+		log.Fatalf("GITHUB_REPOSITORY should be of the form <owner>/<repo>")
+	}
+	owner := repositorySplit[0]
+	repo := repositorySplit[1]
 
-	client := github.NewClient(tc)
+	httpClient := http.DefaultClient
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		token := oauth2.Token{AccessToken: token}
+		ts := oauth2.StaticTokenSource(&token)
+		httpClient = oauth2.NewClient(ctx, ts)
+	}
 
-	pullRequest, _, err := client.PullRequests.Get(ctx, owner, repo, prNo)
+	client := github.NewClient(httpClient)
+
+	pullRequest, _, err := client.PullRequests.Get(ctx, owner, repo, pullRequestNumber)
 	if err != nil {
 		log.Fatalf("Error retrieving pull request github.com/"+
-			"%s/%s/%d: %s", owner, repo, prNo, err)
+			"%s/%s/%d: %s", owner, repo, pullRequestNumber, err)
 	}
 	entry := changelog.Entry{
-		Issue: pr,
+		Issue: strconv.Itoa(pullRequestNumber),
 		Body:  pullRequest.GetBody(),
 	}
 	notes := changelog.NotesFromEntry(entry)
 	if len(notes) < 1 {
 		log.Printf("no changelog entry found in %s: %s", entry.Issue,
 			string(entry.Body))
-		body := "Oops! It looks like no changelog entry is attached to" +
+		body := "It looks like no changelog entry is attached to" +
 			" this PR. Please include a release note block" +
 			" in the PR body, as described in https://github.com/GoogleCloudPlatform/magic-modules/blob/master/.ci/RELEASE_NOTES_GUIDE.md:" +
 			"\n\n~~~\n```release-note:TYPE\nRelease note" +
 			"\n```\n~~~"
 		_, _, err = client.Issues.CreateComment(ctx, owner, repo,
-			prNo, &github.IssueComment{
+			pullRequestNumber, &github.IssueComment{
 				Body: &body,
 			})
 		if err != nil {
 			log.Fatalf("Error creating pull request comment on"+
-				" github.com/%s/%s/%d: %s", owner, repo, prNo,
+				" github.com/%s/%s/%d: %s", owner, repo, pullRequestNumber,
 				err)
 		}
 		os.Exit(1)
 	}
+
 	var unknownTypes []string
 	for _, note := range notes {
 		switch note.Type {
 		case "none",
+			"warning",
+			"feature",
 			"bug",
-			"note",
-			"enhancement",
-			"new-resource",
-			"new-datasource",
-			"deprecation",
-			"breaking-change",
-			"feature":
+			"other",
+			"documentation",
+			"testing",
+			"unknown":
 		default:
 			unknownTypes = append(unknownTypes, note.Type)
 		}
 	}
 	if len(unknownTypes) > 0 {
 		log.Printf("unknown changelog types %v", unknownTypes)
-		body := "Oops! It looks like you're using"
+		body := "It looks like you're using"
 		if len(unknownTypes) == 1 {
 			body += " an"
 		}
@@ -104,14 +114,34 @@ func main() {
 		}
 		body += "\n\nPlease only use the types listed in https://github.com/GoogleCloudPlatform/magic-modules/blob/master/.ci/RELEASE_NOTES_GUIDE.md."
 		_, _, err = client.Issues.CreateComment(ctx, owner, repo,
-			prNo, &github.IssueComment{
+			pullRequestNumber, &github.IssueComment{
 				Body: &body,
 			})
 		if err != nil {
 			log.Fatalf("Error creating pull request comment on"+
-				" github.com/%s/%s/%d: %s", owner, repo, prNo,
+				" github.com/%s/%s/%d: %s", owner, repo, pullRequestNumber,
 				err)
 		}
 		os.Exit(1)
+	}
+
+	if outputPath == "" {
+		return
+	}
+
+	err = os.MkdirAll(outputPath, 0755)
+	if err != nil {
+		log.Fatalf("Failed to ensure directory exists: %s", err)
+	}
+
+	fileContent := changelog.NotesToString(notes)
+	filename := fmt.Sprintf("%d.txt", pullRequestNumber)
+	outputFile := filepath.Join(outputPath, filename)
+
+	if fileContent != "" {
+		err = os.WriteFile(outputFile, []byte(fileContent), 0644)
+		if err != nil {
+			log.Fatalf("Failed to write file: %s", err)
+		}
 	}
 }

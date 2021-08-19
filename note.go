@@ -16,10 +16,7 @@ type Note struct {
 }
 
 var textInBodyREs = []*regexp.Regexp{
-	regexp.MustCompile("(?ms)^```release-note\r?\n(?P<note>.+?)\r?\n```"),
-	regexp.MustCompile("(?ms)^```releasenote\r?\n(?P<note>.+?)\r?\n```"),
 	regexp.MustCompile("(?ms)^```release-note:(?P<type>[^\r\n]*)\r?\n?(?P<note>.*?)\r?\n?```"),
-	regexp.MustCompile("(?ms)^```releasenote:(?P<type>[^\r\n]*)\r?\n?(?P<note>.*?)\r?\n?```"),
 }
 
 func NotesFromEntry(entry Entry) []Note {
@@ -82,4 +79,20 @@ func SortNotes(res []Note) func(i, j int) bool {
 		}
 		return false
 	}
+}
+
+func NotesToString(notes []Note) string {
+	var fileBuilder strings.Builder
+	for i, note := range notes {
+		if note.Type == "none" {
+			continue
+		}
+		fileBuilder.WriteString("```release-note:" + note.Type + "\n")
+		fileBuilder.WriteString(note.Body + "\n")
+		fileBuilder.WriteString("```\n")
+		if i != len(notes)-1 {
+			fileBuilder.WriteString("\n")
+		}
+	}
+	return fileBuilder.String()
 }
