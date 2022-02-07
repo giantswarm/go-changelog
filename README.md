@@ -25,27 +25,14 @@ the changes that have been added between the two commits.
 To run the command line binaries, use Go to build the commands. For example:
 
 ```sh
-$ go get github.com/hashicorp/go-changelog/cmd/changelog-pr-body-check
+$ go install github.com/hashicorp/go-changelog/cmd/changelog-pr-body-check
 ```
 
 ### Docker
 
 A Dockerfile is provided that will build an image containing the binaries. You
 can either run this container directly, or you can build an image sourced from
-it that specifies the environment variables and entrypoint. In the future, when
-go-changelog has config files, this will be how you can add your config files.
-
-```Dockerfile
-FROM hashicorpdev/go-changelog
-
-ENV GITHUB_REPO=myrepo
-ENV GITHUB_OWNER=myorg
-
-# Maybe leave this one out and specify it with -e
-ENV GITHUB_TOKEN=foo123abc
-
-ENTRYPOINT ["/go-changelog/changelog-pr-body-check"]
-```
+it that specifies the environment variables and entrypoint.
 
 ## Usage
 
@@ -65,7 +52,7 @@ ENTRY
 ~~~
 
 Where `TYPE` is the type of release note entry this is. This is usually "bug",
-"enhancement", etc. The tool does not prescribe a list of types to choose from;
+"feature", etc. The tool does not prescribe a list of types to choose from;
 whatever you enter will be available to you when generating the changelog.
 
 `ENTRY` is the body of the changelog entry, and should describe the changes
@@ -76,11 +63,11 @@ Sometimes PRs have multiple changelog entries associated with them. In this
 case, use multiple blocks.
 
 ~~~
-```release-note:deprecation
+```release-note:warning
 Deprecated the `foo` interface, please use the `bar` interface instead.
 ```
 
-```release-note:enhancement
+```release-note:feature
 Added the `bar` interface.
 ```
 ~~~
@@ -99,7 +86,7 @@ Using squash merges makes this easier.
 
 ### Lean on automation
 
-A sample `changelog-check` binary is included in the `cmd` directory to show
+A sample `changelog-pr-body-check` binary is included in the `cmd` directory to show
 how a GitHub PR can be checked to ensure that a changelog entry is attached to
 the PR. Lean on automation to guard against forgetting changelog entries when
 submitting PRs.

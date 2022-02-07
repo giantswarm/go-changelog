@@ -14,6 +14,7 @@ RUN go install ./...
 
 # Build a minimal image for the binaries
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates mailcap
+RUN apk --no-cache add ca-certificates mailcap git
 WORKDIR /go-changelog
-COPY --from=builder /go/bin .
+COPY --from=builder /go/bin /go-changelog/
+COPY --from=builder /go-changelog/cmd/changelog-build/*.tmpl /go-changelog/

@@ -1,0 +1,25 @@
+version: 2.1
+
+orbs:
+  architect: giantswarm/architect@4.0.0
+
+workflows:
+  build:
+    jobs:
+      - architect/go-test:
+          name: go-test
+          filters:
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-docker:
+          name: push-to-quay
+          context: "architect"
+          image: "quay.io/giantswarm/go-changelog"
+          username_envar: "QUAY_USERNAME"
+          password_envar: "QUAY_PASSWORD"
+          requires:
+            - go-test
+          filters:
+            tags:
+              only: /^v.*/

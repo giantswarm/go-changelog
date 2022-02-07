@@ -128,12 +128,12 @@ func main() {
 	}
 	sort.Slice(notes, changelog.SortNotes(notes))
 	type renderData struct {
-		Notes       []changelog.Note
-		NotesByType map[string][]changelog.Note
+		PreviousVersion string
+		NotesByType     map[string][]changelog.Note
 	}
 	err = tmpl.Execute(os.Stdout, renderData{
-		Notes:       notes,
-		NotesByType: notesByType,
+		PreviousVersion: lastRelease,
+		NotesByType:     notesByType,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error executing templates: %s\n", err)
